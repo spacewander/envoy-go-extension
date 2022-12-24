@@ -1,0 +1,36 @@
+name: Test Envoy
+on:
+  push:
+    branches:
+      - master
+      - lzx
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/master' && github.run_number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    env:
+      cache-dir: ~/envoy_cache
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Cache compilation
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-compilation
+        with:
+          path: ${{ env.cache-dir }}
+          key: ${{ runner.os }}-${{ env.cache-name }}
+
+      - name: Run test-envoy
+        run: |
+          ENVOY_DOCKER_BUILD_DIR=${{ env.cache-dir }} ./ci/run_envoy_docker.sh make test-envoy 'BUILD_OPTS="--define=deprecated_features=disabled --define=wasm=disabled --config=gcc --jobs 2"' || exit 0
